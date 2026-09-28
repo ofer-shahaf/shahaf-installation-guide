@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>מסלול התקנה · שחף אלומיניום</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Rubik:wght@600;700;800&family=Heebo:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="wrap">
+
+    <!-- header -->
+    <div class="topbar">
+      <div class="brand">
+        <h1>מסלול התקנה</h1>
+        <div class="sub">שחף אלומיניום · מהזמנה עד התקנה</div>
+      </div>
+      <div class="tabs">
+        <button class="tab active" data-view="projects">פרויקטים</button>
+        <button class="tab" data-view="board">לוח שבועי</button>
+        <button class="tab" data-view="today">משימות היום</button>
+        <button class="tab" data-view="holidays">חגים</button>
+        <button class="tab" data-view="rules">כללי חישוב</button>
+      </div>
+    </div>
+
+    <!-- ============ פרויקטים ============ -->
+    <section id="view-projects" class="view active">
+      <div class="kpis">
+        <div class="kpi"><div class="num" id="kpiActive">0</div><div class="lbl">פרויקטים פעילים</div></div>
+        <div class="kpi bad"><div class="num" id="kpiOverdue">0</div><div class="lbl">משימות באיחור</div></div>
+        <div class="kpi warn"><div class="num" id="kpiWeek">0</div><div class="lbl">התקנות ב-7 הימים הקרובים</div></div>
+        <div class="kpi ok"><div class="num" id="kpiDone">0</div><div class="lbl">פרויקטים שהושלמו</div></div>
+      </div>
+
+      <div class="controls">
+        <div class="search-box"><input type="text" id="search" placeholder="חיפוש לקוח / מס. תיק…"></div>
+        <div class="toggle" id="urgentToggle"><input type="checkbox" id="urgentCheck" tabindex="-1"><span>רק דחוף</span></div>
+        <button class="btn-primary" id="newBtn">+ פרויקט חדש</button>
+        <button id="btnExport" title="שמירת קובץ גיבוי">⭳ ייצוא</button>
+        <button id="btnImport" title="טעינת קובץ גיבוי">⭱ ייבוא</button>
+        <input type="file" id="importFile" accept="application/json" hidden>
+      </div>
+
+      <div class="new-form" id="newForm">
+        <div class="field"><label>שם לקוח</label><input type="text" id="newName" placeholder='למשל "כהן משה 12B"'></div>
+        <div class="field"><label>מס. תיק</label><input type="text" id="newCase" placeholder="אופציונלי"></div>
+        <button class="btn-primary" id="newSave">הוספה</button>
+        <button id="newCancel">ביטול</button>
+      </div>
+
+      <div class="list" id="list"></div>
+    </section>
+
+    <!-- ============ לוח שבועי ============ -->
+    <section id="view-board" class="view">
+      <div class="board-nav">
+        <button id="boardPrev">◀ שבוע קודם</button>
+        <button id="boardToday" class="btn-primary">השבוע</button>
+        <button id="boardNext">שבוע הבא ▶</button>
+        <span class="hint" id="boardLabel"></span>
+      </div>
+      <p class="note">מוצגות משימות מתוכננות (עם תאריך) של פרויקטים בתהליך, לפי יום. 🔧 = מועד התקנה.</p>
+      <div class="board-grid" id="boardGrid"></div>
+    </section>
+
+    <!-- ============ משימות היום ============ -->
+    <section id="view-today" class="view">
+      <h2 class="section-title">משימות להיום — <span id="todayDate" class="mono"></span></h2>
+      <div class="report-list" id="todayList"></div>
+    </section>
+
+    <!-- ============ חגים ============ -->
+    <section id="view-holidays" class="view">
+      <p class="note">ימי אי-עבודה לחישוב לוח הזמנים (בנוסף לשישי/שבת). ניתן להוסיף ולהסיר לפי הצורך.</p>
+      <div class="controls">
+        <input type="date" id="holDate">
+        <input type="text" id="holName" placeholder="תיאור (אופציונלי)">
+        <button class="btn-primary" id="holAdd">+ הוספת יום</button>
+      </div>
+      <table class="data-table">
+        <thead><tr><th style="width:120px">תאריך</th><th>תיאור</th><th style="width:50px"></th></tr></thead>
+        <tbody id="holBody"></tbody>
+      </table>
+    </section>
+
+    <!-- ============ כללי חישוב ============ -->
+    <section id="view-rules" class="view">
+      <p class="note">כשמזינים תאריך למשימה בעמודה הימנית, המשימה בעמודה השמאלית מחושבת אוטומטית לפי המרווח (מעוגל ליום עבודה, בדילוג על שישי/שבת וחגים). הכללים הועתקו מקובץ האקסל המקורי.</p>
+      <table class="data-table">
+        <thead><tr><th>מס׳</th><th>מזינים תאריך ב…</th><th>נגזר</th><th>המשימה הנגזרת</th><th>מרווח</th></tr></thead>
+        <tbody id="rulesBody"></tbody>
+      </table>
+    </section>
+
+  </div>
+
+  <script src="js/holidays.js"></script>
+  <script src="js/schedule.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
