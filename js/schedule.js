@@ -1,14 +1,19 @@
 /*
  * schedule.js — מנוע לוח הזמנים
  * ------------------------------------------------------------
- * מכיל את שני החלקים שהיו במקור בקוד ה-VBA של קובץ האקסל:
+ * מכיל את שני החלקים שהיו במקור בקוד ה-VBA של קובץ האקסל, בתוספת
+ * שתי הרחבות שנדרשו כשהכלי עבר לשמש את קליל:
  *
- *   1. לוגיקת ימי עבודה (chkDate / chkDateRev) — דילוג על שישי, שבת וחגים.
+ *   1. לוגיקת ימי עבודה (chkDate / chkDateRev) — דילוג על סוף שבוע וחגים.
+ *      כעת לכל שלב יש לוח חגים משלו: שלב שמתבצע בארץ נעצר בחגי ישראל
+ *      והאסלאם, ושלב שממתין לספק בקפריסין נעצר בחגי קפריסין — שם גם
+ *      סוף השבוע שונה (שבת־ראשון במקום שישי־שבת).
+ *
  *   2. כללי התלות בין המשימות — הזנת תאריך למשימה אחת גוררת חישוב
  *      אוטומטי של תאריכי היעד למשימות שתלויות בה.
  *
- * שבוע העבודה: ראשון–חמישי. המרווחים (למשל "+10") הם ימי לוח שנתווספים
- * ואז מעוגלים קדימה ליום העבודה הקרוב — בדיוק כמו במקור.
+ * המרווחים (למשל "+10") הם ימי לוח שנתווספים ואז מעוגלים קדימה ליום
+ * העבודה הקרוב — בדיוק כמו במקור.
  * ------------------------------------------------------------
  */
 
@@ -26,62 +31,69 @@ function addDays(d, n) {
   r.setUTCDate(r.getUTCDate() + n);
   return r;
 }
-// getUTCDay(): 0=ראשון ... 5=שישי, 6=שבת
-function isWeekend(d) {
+
+/* ---------- לוחות החגים ---------- */
+/*
+ * HOLIDAYS_BY_CAL — מפה מקוד לוח (il / is / cy) ל-Set של תאריכי ISO.
+ * ALL_CAL_HOLIDAYS — ימים שהוזנו ידנית ותקפים לכל הלוחות.
+ * שתיהן ממולאות ע"י app.js דרך setHolidayData().
+ */
+let HOLIDAYS_BY_CAL = {};   // ממולא ע"י app.js לפי window.CALENDARS
+let ALL_CAL_HOLIDAYS = new Set();
+
+function setHolidayData(byCal, allCal) {
+  HOLIDAYS_BY_CAL = byCal;
+  ALL_CAL_HOLIDAYS = allCal || new Set();
+}
+
+/* ברירת מחדל: כל השלבים מתבצעים בארץ. */
+const DEFAULT_CALS = ['il', 'is'];
+
+/*
+ * isWorkingDay — יום עבודה עבור צירוף לוחות נתון.
+ * יום נחשב לא-זמין אם הוא סוף שבוע באחד הלוחות, או חג באחד הלוחות.
+ */
+function isWorkingDay(d, cals) {
+  const list = (cals && cals.length) ? cals : DEFAULT_CALS;
   const w = d.getUTCDay();
-  return w === 5 || w === 6; // שישי או שבת
-}
-
-/* ---------- לוח החגים ---------- */
-// מתמזג: ברירת מחדל (holidays.js) + תוספות המשתמש − הסרות המשתמש.
-// getHolidaySet() מוגדר ב-app.js ומחזיר Set של מחרוזות ISO.
-// כאן שומרים הפניה שממולאת ע"י app.js.
-let HOLIDAY_SET = new Set((window.DEFAULT_HOLIDAYS || []).map(h => h.date));
-
-function setHolidaySet(isoSet) {
-  HOLIDAY_SET = isoSet;
-}
-function isHoliday(d) {
-  return HOLIDAY_SET.has(toISO(d));
-}
-function isWorkingDay(d) {
-  return !isWeekend(d) && !isHoliday(d);
+  const iso = toISO(d);
+  if (ALL_CAL_HOLIDAYS.has(iso)) return false;
+  for (let i = 0; i < list.length; i++) {
+    const cal = (window.CALENDARS || {})[list[i]];
+    if (!cal) continue;
+    if (cal.weekend.indexOf(w) !== -1) return false;
+    const set = HOLIDAYS_BY_CAL[list[i]];
+    if (set && set.has(iso)) return false;
+  }
+  return true;
 }
 
 /*
  * chkDate — מגלגל תאריך קדימה ליום העבודה הקרוב.
- * תואם ל-VBA:  if Weekday(dt) > 5 then dt = dt + 8 - Weekday(dt)
- * ואז לולאה שמדלגת על חגים וסופי שבוע.
+ * תואם ל-VBA המקורי, בתוספת בחירת לוח החגים לפי השלב.
  */
-function chkDate(d) {
+function chkDate(d, cals) {
   let r = new Date(d.getTime());
-  if (isWeekend(r)) {
-    // דחיפה לראשון
-    while (isWeekend(r)) r = addDays(r, 1);
-  }
-  for (let i = 0; i < 40; i++) {
-    if (isWorkingDay(r)) return r;
+  for (let i = 0; i < 60; i++) {
+    if (isWorkingDay(r, cals)) return r;
     r = addDays(r, 1);
   }
   return r;
 }
 
 /*
- * chkDateRev — מגלגל תאריך אחורה ליום העבודה הקרוב (משמש רק למשימה 17).
+ * chkDateRev — מגלגל תאריך אחורה ליום העבודה הקרוב (משמש למשימות 15 ו-16).
  */
-function chkDateRev(d) {
+function chkDateRev(d, cals) {
   let r = new Date(d.getTime());
-  if (isWeekend(r)) {
-    while (isWeekend(r)) r = addDays(r, -1);
-  }
-  for (let i = 0; i < 40; i++) {
-    if (isWorkingDay(r)) return r;
+  for (let i = 0; i < 60; i++) {
+    if (isWorkingDay(r, cals)) return r;
     r = addDays(r, -1);
   }
   return r;
 }
 
-/* ---------- 17 שלבי מסלול ההתקנה (זהה לתבנית שבאקסל) ---------- */
+/* ---------- 17 שלבי המסלול ---------- */
 const TASK_TEMPLATE = [
   'חתימת לקוח',                                   // 1
   'הזמנת מ. עיוור',                                // 2
@@ -99,125 +111,275 @@ const TASK_TEMPLATE = [
   'קבלת זכוכית',                                  // 14
   'המשך היצור קבלת זכוכית וקבלת חוסרים אחרים',    // 15
   'פריסה ובדיקה של כל העבודה',                     // 16
-  'מועד ההתקנה + תיאומים'                          // 17
+  'מועד מסירה / התקנה משוער',                      // 17
+  'משלוח אבקה לצביעה ליצרן',                       // 18
+  'משלוח מוטות אלומיניום להשלמה',                  // 19
+  'אריזה ומשלוח מהיצרן',                           // 20
+  'תיעוד האריזה',                                  // 21
+  'פריקה בקליל'                                    // 22
 ];
+
+const TASK_COUNT = TASK_TEMPLATE.length;   // 22
+
+/*
+ * שני השלבים האחרונים אינם המשך הרצף אלא תנאי מקדים לו: קליל שולחת
+ * ליצרן החיצוני אבקה לצביעה ומוטות אלומיניום להשלמה, והייצור אינו יכול
+ * להתחיל לפני שהמשלוחים הגיעו. הם קיבלו מספרים 18 ו-19 כדי לשמור על
+ * ההתאמה למספור שבקובץ האקסל, אך מוצגים במקומם הלוגי — לפני שלב 10.
+ */
+const SHIPMENT_TASKS = [18, 19];
+
+/*
+ * סקופ העבודה מול יצרן חו"ל.
+ * ------------------------------------------------------------
+ * כשהייצור יוצא מהארץ התהליך אינו זהה לתהליך המקומי בתוספת משלוחים —
+ * הוא תהליך אחר ומצומצם. היצרן מבצע את מידות הביצוע, החיתוך, הזמנת
+ * הזכוכית והרכבתה, וקליל נשארת עם ההזמנה, החומר שהיא שולחת, הבדיקה
+ * וקליטת המשלוח חזרה.
+ *
+ * OVERSEAS_ONLY — שלבים שקיימים רק בעבודת חו"ל.
+ * OVERSEAS_SCOPE — כל השלבים שרלוונטיים בעבודת חו"ל; כל מה שמחוץ
+ *                  לרשימה יורד ל'לא רלוונטי' בבחירת יצרן חו"ל.
+ */
+const OVERSEAS_ONLY  = [18, 19, 20, 21, 22];
+const OVERSEAS_SCOPE = [1, 4, 5, 7, 8, 16, 17, 18, 19, 20, 21, 22];
+
+/* מדינות שנחשבות חו"ל לעניין סקופ העבודה */
+function isOverseas(country) {
+  return !!country && country !== 'il';
+}
+
+/* סדר התצוגה: 18 ו-19 משובצים לפני שלב החיתוך */
+const DISPLAY_ORDER = [1,2,3,4,5,6,7,8,9,18,19,10,11,12,13,14,15,16,20,21,22,17];
+
+/* ---------- המודל ההיברידי ---------- */
+/*
+ * קליל מספקת חלונות, ובעתיד ייתכן שתתקין אותם בעצמה. סוג הפרויקט נבחר
+ * בפתיחתו וקובע את שמו של השלב האחרון.
+ *
+ * naDefault — שלבים שמסומנים "לא רלוונטי" בפתיחת פרויקט חדש, כי הם אינם
+ * נדרשים בכל עבודה. אפשר להדליק אותם ידנית בכל פרויקט.
+ */
+const PROJECT_TYPES = {
+  supply: {
+    label: 'אספקה בלבד',
+    short: 'אספקה',
+    task17: 'מועד מסירה משוער',
+    naDefault: [2, 3, 12, 18, 19, 20, 21, 22]
+  },
+  install: {
+    label: 'אספקה + התקנה',
+    short: 'אספקה + התקנה',
+    task17: 'מועד התקנה משוער + תיאומים',
+    naDefault: [2, 3, 12, 18, 19, 20, 21, 22]
+  }
+};
+const DEFAULT_TYPE = 'supply';
+
+/* סדר התצוגה של משימות פרויקט */
+function orderTasks(tasks) {
+  return tasks.slice().sort((a, b) =>
+    DISPLAY_ORDER.indexOf(a.n) - DISPLAY_ORDER.indexOf(b.n));
+}
+
+/* שמות השלבים עבור סוג פרויקט נתון */
+function taskNames(type) {
+  const t = PROJECT_TYPES[type] || PROJECT_TYPES[DEFAULT_TYPE];
+  const names = TASK_TEMPLATE.slice();
+  names[16] = t.task17;
+  return names;
+}
+
+/* ---------- שיוך לוח חגים לכל שלב ---------- */
+/*
+ * לוח החגים של שלב נגזר מהגורם שמבצע אותו ומהמקום שבו הוא יושב:
+ *
+ *   קליל ובנותיה (אלומיניום, פרזול, זכוכית) — בארץ, לכן il + is.
+ *   הזמנות, מידות, סקיצות וחתימות — בארץ, il + is.
+ *   הייצור עצמו — מועבר ליצרן חיצוני. כשהיצרן בקפריסין, שלבי הייצור
+ *   נעצרים בחגי קפריסין ובסוף השבוע שלהם (שבת–ראשון), ולא בחגי ישראל.
+ *
+ * ברירת המחדל מסמנת את שלבי הייצור (10, 15, 16) גם בקפריסין. שלבים
+ * שמבוצעים אצל יצרן בארץ צריכים להישאר il + is בלבד — ניתן לשנות
+ * לכל שלב במסך 'כללי חישוב', והשינוי נשמר.
+ */
+const DEFAULT_TASK_CALS = {};   // ברירת מחדל: הכל בארץ
+
+/*
+ * השלבים שמתבצעים אצל היצרן החיצוני. כשלפרויקט משויך יצרן, השלבים
+ * האלה לוקחים את הלוח של מדינתו במקום את לוח ברירת המחדל.
+ */
+const FACTORY_TASKS = [10, 15, 16];
+
+let TASK_CALS = {};   // ממולא ע"י app.js (ברירת מחדל + התאמות המשתמש)
+
+function setTaskCals(map) {
+  TASK_CALS = map || {};
+}
+/*
+ * ACTIVE_COUNTRY — מדינת היצרן של הפרויקט שמחושב כרגע. נקבעת ע"י app.js
+ * לפני כל cascade, ומשפיעה רק על השלבים שמתבצעים אצל היצרן.
+ */
+let ACTIVE_COUNTRY = null;
+function setActiveCountry(code) { ACTIVE_COUNTRY = code || null; }
+
+function calsFor(n) {
+  if (TASK_CALS[n]) return TASK_CALS[n];                 // בחירה ידנית גוברת
+  if (ACTIVE_COUNTRY && FACTORY_TASKS.indexOf(n) !== -1) {
+    const c = (window.COUNTRY_CALS || {})[ACTIVE_COUNTRY];
+    if (c) return c.cals;
+  }
+  return DEFAULT_TASK_CALS[n] || DEFAULT_CALS;
+}
+
+/* ---------- מרווחי הימים בין השלבים ---------- */
+/*
+ * כל גזירה היא "שלב היעד = שלב הבסיס + מספר ימים", ואז עיגול ליום עבודה.
+ * המספרים הועתקו במקור מקובץ האקסל, אך הם אינם קבועים בקוד: כל אחד מהם
+ * ניתן לעריכה במסך 'כללי חישוב', והשינוי נשמר ומשפיע על כל חישוב הבא.
+ *
+ * המפתח הוא "יעד<-בסיס". ערך שלילי = חישוב אחורה מהבסיס.
+ */
+const GAP_DEFAULTS = {
+  '4<-1':   4,    // חתימת לקוח → חתימה על סקיצות
+  '6<-4':   1,    // סקיצות → ליקוט פירזול
+  '3<-2':   10,   // הזמנת מ. עיוור → התקנת מ. עיוור
+  '7<-5':   1,    // מידות → הזמנת אלומיניום
+  '8<-7':   10,   // הזמנה → קבלת אלומיניום
+  '10<-8':  1,    // קבלה → חיתוך
+  '11<-10': 2,    // חיתוך → הזמנת חוסרים
+  '13<-9':  1,    // מידות ביצוע → הזמנת זכוכית
+  '14<-13': 3,    // הזמנה → קבלת זכוכית
+  '16<-17': -2,   // מסירה → פריסה ובדיקה (אחורה)
+  '15<-17': -3    // מסירה → המשך היצור (אחורה)
+};
+
+let GAPS = Object.assign({}, GAP_DEFAULTS);
+function setGaps(overrides) {
+  GAPS = Object.assign({}, GAP_DEFAULTS, overrides || {});
+}
+function gapOf(key) {
+  return (GAPS[key] !== undefined && GAPS[key] !== null) ? Number(GAPS[key]) : 0;
+}
+
+/*
+ * שרשרת הגזירה לכל שלב שמפעיל חישוב. כל איבר הוא [יעד, בסיס], והמרווח
+ * נלקח מ-GAPS לפי המפתח "יעד<-בסיס". הסדר חשוב — שלב נגזר עשוי לשמש
+ * בסיס לשלב הבא אחריו בשרשרת.
+ */
+const CHAINS = {
+  1:  [[4, 1], [6, 4]],
+  2:  [[3, 2]],
+  4:  [[6, 4]],
+  5:  [[7, 5], [8, 7], [10, 8], [11, 10]],
+  8:  [[10, 8]],
+  9:  [[13, 9], [14, 13]],
+  10: [[11, 10]],
+  13: [[14, 13]],
+  17: [[16, 17], [15, 17]]
+};
 
 /*
  * cascade — מנוע התלות.
  * קלט:
- *   dates    — מערך של 17 איברים; כל איבר הוא מחרוזת ISO או null.
- *   changed  — מספר המשימה שהשתנתה (1..17).
- * פלט: מערך חדש של 17 תאריכים לאחר החישוב.
+ *   dates    — מערך של 19 איברים; כל איבר הוא מחרוזת ISO או null.
+ *   changed  — מספר המשימה שהשתנתה (1..19).
+ * פלט: מערך חדש של 19 תאריכים לאחר החישוב.
  *
- * הכללים הועתקו אחד-לאחד מ-Worksheet_Change שבקובץ המקורי.
- * אינדקסים כאן הם 1-מבוססים (t[1]..t[17]) לצורך קריאוּת מול המקור.
+ * הלוגיקה זהה למקור שב-VBA, בשלושה הבדלים: המרווחים נקראים מטבלה
+ * ולא מהקוד, כל עיגול ליום עבודה נעשה לפי לוח החגים של אותו שלב,
+ * ושלבי המשלוח 18 ו-19 חוסמים את תחילת הייצור.
  */
 function cascade(dates, changed) {
-  // t[1..17] כאובייקטי Date או null
+  const N = TASK_COUNT;
   const t = [null];
-  for (let i = 0; i < 17; i++) t.push(dates[i] ? fromISO(dates[i]) : null);
+  for (let i = 0; i < N; i++) t.push(dates[i] ? fromISO(dates[i]) : null);
 
   const has = i => t[i] instanceof Date && !isNaN(t[i]);
-  const set = (i, d) => { t[i] = d; };
 
-  switch (changed) {
-    case 1: // חתימת לקוח
-      if (has(1)) {
-        set(1, chkDate(t[1]));
-        set(4, chkDate(addDays(t[1], 4)));   // חתימה על סקיצות = +4
-        set(6, chkDate(addDays(t[4], 1)));   // ליקוט פירזול   = סקיצות +1
-      }
-      break;
-
-    case 2: // הזמנת מ. עיוור
-      if (has(2)) {
-        set(2, chkDate(t[2]));
-        set(3, chkDate(addDays(t[2], 10)));  // התקנת מ. עיוור = +10
-      }
-      break;
-
-    case 4: // חתימה על סקיצות
-      if (has(4)) {
-        set(4, chkDate(t[4]));
-        set(6, chkDate(addDays(t[4], 1)));   // ליקוט פירזול = +1
-      }
-      break;
-
-    case 5: // מידות להזמנת אלומיניום
-      if (has(5)) {
-        set(5, chkDate(t[5]));
-        set(7, chkDate(addDays(t[5], 1)));   // הזמנת אלומיניום = +1
-        set(8, chkDate(addDays(t[7], 10)));  // קבלת אלומיניום  = הזמנה +10
-        set(10, chkDate(addDays(t[8], 1)));  // חיתוך          = קבלה +1
-        set(11, chkDate(addDays(t[10], 2))); // הזמנת חוסרים    = חיתוך +2
-      }
-      break;
-
-    case 8: // קבלת אלומיניום
-      if (has(8)) {
-        set(8, chkDate(t[8]));
-        set(10, chkDate(addDays(t[8], 1)));  // חיתוך = +1
-      }
-      break;
-
-    case 9: // מידות ביצוע
-      if (has(9)) {
-        set(9, chkDate(t[9]));
-        set(13, chkDate(addDays(t[9], 1)));  // הזמנת זכוכית = +1
-        set(14, chkDate(addDays(t[13], 3))); // קבלת זכוכית  = הזמנה +3
-      }
-      break;
-
-    case 10: // חיתוך כל האלומיניום
-      if (has(10)) {
-        set(10, chkDate(t[10]));
-        set(11, chkDate(addDays(t[10], 2))); // הזמנת חוסרים = +2
-      }
-      break;
-
-    case 13: // הזמנת זכוכית
-      if (has(13)) {
-        set(13, chkDate(t[13]));
-        set(14, chkDate(addDays(t[13], 3))); // קבלת זכוכית = +3
-      }
-      break;
-
-    case 17: // מועד ההתקנה — חישוב אחורה
-      if (has(17)) {
-        set(17, chkDate(t[17]));
-        set(16, chkDateRev(addDays(t[17], -2))); // פריסה ובדיקה = −2
-        set(15, chkDateRev(addDays(t[17], -3))); // המשך היצור   = −3
-      }
-      break;
-
-    default:
-      // משימות 3, 6, 7, 11, 12, 14, 15, 16 — הזנה בלבד, אין גזירה.
-      // עדיין מגלגלים ליום עבודה כמו במקור.
-      if (has(changed)) set(changed, chkDate(t[changed]));
-      break;
+  if (!has(changed)) {
+    const out = [];
+    for (let i = 1; i <= N; i++) out.push(has(i) ? toISO(t[i]) : (dates[i - 1] || null));
+    return out;
   }
 
-  // חזרה למערך ISO בן 17 איברים
+  // השלב שהשתנה עצמו מתעגל ליום עבודה לפי הלוח שלו
+  t[changed] = chkDate(t[changed], calsFor(changed));
+
+  // שלבי המשלוח מתעגלים ללוח של היצרן, כי הם מתרחשים אצלו
+  if (SHIPMENT_TASKS.indexOf(changed) !== -1) {
+    t[changed] = chkDate(t[changed], calsFor(10));
+  }
+
+  (CHAINS[changed] || []).forEach(pair => {
+    const target = pair[0], base = pair[1];
+    if (!has(base)) return;
+    const gap = gapOf(target + '<-' + base);
+    const raw = addDays(t[base], gap);
+    t[target] = gap < 0 ? chkDateRev(raw, calsFor(target)) : chkDate(raw, calsFor(target));
+  });
+
+  /*
+   * שערי המשלוח: הייצור (שלב 10) אינו יכול להתחיל לפני שהאבקה ומוטות
+   * ההשלמה הגיעו ליצרן. אם אחד המשלוחים מאוחר יותר מהתאריך שחושב
+   * לשלב 10 — השלב נדחף קדימה, ואיתו הזמנת החוסרים שנגזרת ממנו.
+   */
+  if (has(10)) {
+    let gate = t[10];
+    SHIPMENT_TASKS.forEach(s => { if (has(s) && t[s] > gate) gate = t[s]; });
+    if (gate > t[10]) {
+      t[10] = chkDate(gate, calsFor(10));
+      if (has(11)) {
+        t[11] = chkDate(addDays(t[10], gapOf('11<-10')), calsFor(11));
+      }
+    }
+  }
+
   const out = [];
-  for (let i = 1; i <= 17; i++) out.push(has(i) ? toISO(t[i]) : (dates[i - 1] || null));
+  for (let i = 1; i <= N; i++) out.push(has(i) ? toISO(t[i]) : (dates[i - 1] || null));
   return out;
 }
 
-/* טבלת התלות — לתצוגה בלבד (מסך "כללי חישוב") */
-const DEPENDENCY_RULES = [
-  { from: 1, to: 4, gap: '+4' },
-  { from: 1, to: 6, gap: 'סקיצות +1' },
-  { from: 2, to: 3, gap: '+10' },
-  { from: 4, to: 6, gap: '+1' },
-  { from: 5, to: 7, gap: '+1' },
-  { from: 5, to: 8, gap: 'הזמנה +10' },
-  { from: 5, to: 10, gap: 'קבלה +1' },
-  { from: 5, to: 11, gap: 'חיתוך +2' },
-  { from: 8, to: 10, gap: '+1' },
-  { from: 9, to: 13, gap: '+1' },
-  { from: 9, to: 14, gap: 'הזמנה +3' },
-  { from: 10, to: 11, gap: '+2' },
-  { from: 13, to: 14, gap: '+3' },
-  { from: 17, to: 16, gap: '−2 (אחורה)' },
-  { from: 17, to: 15, gap: '−3 (אחורה)' }
+/*
+ * earliestDelivery — המועד המוקדם ביותר שבו אפשר למסור, בהינתן
+ * התאריכים שכבר הוזנו.
+ * ------------------------------------------------------------
+ * שלב 15 (המשך הייצור) נגזר אחורה מהמסירה, ולכן הוא חייב ליפול אחרי
+ * כל שלב שמתבצע לפניו. מכאן שהמסירה אינה יכולה להיות מוקדמת מהשלב
+ * המאוחר ביותר שכבר נקבע, בתוספת המרווח האחורי.
+ *
+ * מחזיר מחרוזת ISO, או null כשאין עדיין ממה להיגזר.
+ */
+function earliestDelivery(dates) {
+  const BACKWARD = [15, 16, 17];        // אלה נגזרים מהמסירה עצמה
+  let latest = null;
+  for (let n = 1; n <= TASK_COUNT; n++) {
+    if (BACKWARD.indexOf(n) !== -1) continue;
+    const iso = dates[n - 1];
+    if (!iso) continue;
+    if (!latest || iso > latest) latest = iso;
+  }
+  if (!latest) return null;
+  const back = Math.abs(gapOf('15<-17'));
+  return toISO(chkDate(addDays(fromISO(latest), back), calsFor(17)));
+}
+
+/* טבלת התלות — נגזרת מהשרשראות, כדי שהתצוגה לא תוכל להתנתק מהמנוע */
+const DEPENDENCY_RULES = (function () {
+  const seen = {}, out = [];
+  Object.keys(CHAINS).forEach(trig => {
+    CHAINS[trig].forEach(pair => {
+      const key = pair[0] + '<-' + pair[1];
+      if (seen[key]) return;
+      seen[key] = true;
+      out.push({ key: key, from: pair[1], to: pair[0] });
+    });
+  });
+  return out;
+})();
+
+/* חסימות — לתצוגה בלבד, אין להן מרווח לעריכה */
+const BLOCKING_RULES = [
+  { from: 18, to: 10, note: 'הייצור לא מתחיל לפני שהאבקה הגיעה' },
+  { from: 19, to: 10, note: 'הייצור לא מתחיל לפני שהמוטות הגיעו' }
 ];

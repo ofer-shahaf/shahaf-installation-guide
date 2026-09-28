@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>מסלול התקנה · שחף אלומיניום</title>
+  <title>מסלול ייצור ואספקה · קליל</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Rubik:wght@600;700;800&family=Heebo:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/styles.css?v=21">
 </head>
 <body>
   <div class="wrap">
@@ -16,27 +16,27 @@
     <!-- header -->
     <div class="topbar">
       <div class="brand">
-        <h1>מסלול התקנה</h1>
-        <div class="sub">שחף אלומיניום · מהזמנה עד התקנה</div>
+        <h1>מסלול ייצור ואספקה</h1>
+        <div class="sub">קליל תעשיות · מהזמנה עד מסירה <span class="ver">גרסה 21</span></div>
       </div>
-      <div class="tabs">
-        <button class="tab active" data-view="projects">פרויקטים</button>
-        <button class="tab" data-view="board">לוח שבועי</button>
-        <button class="tab" data-view="today">משימות היום</button>
-        <button class="tab" data-view="holidays">חגים</button>
-        <button class="tab" data-view="rules">כללי חישוב</button>
+      <div class="tabs-main">
+        <button class="tab active" data-view="today">תנועה יומית</button>
+        <button class="tab" data-view="board">דשבורד</button>
+        <button class="tab" data-view="projects">פרויקטים</button>
+        <button class="tab" data-view="makers">יצרנים</button>
+      </div>
+      <div class="tabs-sub">
+        <button class="tab tab-sm" data-view="data">נתונים</button>
+        <button class="tab tab-sm" data-view="customers">לקוחות</button>
+        <button class="tab tab-sm" data-view="contacts">אנשי קשר</button>
+        <button class="tab tab-sm" data-view="holidays">חגים</button>
+        <button class="tab tab-sm" data-view="rules">כללי חישוב</button>
+        <button class="tab tab-sm tab-mgr" data-view="manager">מנהל</button>
       </div>
     </div>
 
     <!-- ============ פרויקטים ============ -->
-    <section id="view-projects" class="view active">
-      <div class="kpis">
-        <div class="kpi"><div class="num" id="kpiActive">0</div><div class="lbl">פרויקטים פעילים</div></div>
-        <div class="kpi bad"><div class="num" id="kpiOverdue">0</div><div class="lbl">משימות באיחור</div></div>
-        <div class="kpi warn"><div class="num" id="kpiWeek">0</div><div class="lbl">התקנות ב-7 הימים הקרובים</div></div>
-        <div class="kpi ok"><div class="num" id="kpiDone">0</div><div class="lbl">פרויקטים שהושלמו</div></div>
-      </div>
-
+    <section id="view-projects" class="view">
       <div class="controls">
         <div class="search-box"><input type="text" id="search" placeholder="חיפוש לקוח / מס. תיק…"></div>
         <div class="toggle" id="urgentToggle"><input type="checkbox" id="urgentCheck" tabindex="-1"><span>רק דחוף</span></div>
@@ -49,6 +49,13 @@
       <div class="new-form" id="newForm">
         <div class="field"><label>שם לקוח</label><input type="text" id="newName" placeholder='למשל "כהן משה 12B"'></div>
         <div class="field"><label>מס. תיק</label><input type="text" id="newCase" placeholder="אופציונלי"></div>
+        <div class="field"><label>סוג פרויקט</label>
+          <select id="newType">
+            <option value="supply" selected>אספקה בלבד</option>
+            <option value="install">אספקה + התקנה</option>
+          </select>
+        </div>
+        <div class="field"><label>יצרן</label><select id="newMaker"></select></div>
         <button class="btn-primary" id="newSave">הוספה</button>
         <button id="newCancel">ביטול</button>
       </div>
@@ -56,51 +63,386 @@
       <div class="list" id="list"></div>
     </section>
 
-    <!-- ============ לוח שבועי ============ -->
+    <!-- ============ דשבורד כללי ============ -->
     <section id="view-board" class="view">
+      <div class="kpis">
+        <div class="kpi"><div class="num" id="kpiActive">0</div><div class="lbl">עבודות פעילות</div></div>
+        <div class="kpi bad"><div class="num" id="kpiOverdue">0</div><div class="lbl">משימות באיחור</div></div>
+        <div class="kpi warn"><div class="num" id="kpiWeek">0</div><div class="lbl">מסירות ב-7 הימים הקרובים</div></div>
+        <div class="kpi ok"><div class="num" id="kpiDone">0</div><div class="lbl">עבודות שהושלמו</div></div>
+      </div>
+
       <div class="board-nav">
-        <button id="boardPrev">◀ שבוע קודם</button>
-        <button id="boardToday" class="btn-primary">השבוע</button>
-        <button id="boardNext">שבוע הבא ▶</button>
+        <button id="boardPrev">◀ אחורה</button>
+        <button id="boardToday" class="btn-primary">מהיום</button>
+        <button id="boardNext">קדימה ▶</button>
+        <span class="range-switch" id="rangeSwitch">
+          <button data-range="week" class="active">שבוע</button>
+          <button data-range="month">חודש</button>
+          <button data-range="2month">חודשיים</button>
+        </span>
+        <div class="toggle" id="lateToggle"><input type="checkbox" id="lateCheck" tabindex="-1"><span>רק באיחור</span></div>
         <span class="hint" id="boardLabel"></span>
       </div>
-      <p class="note">מוצגות משימות מתוכננות (עם תאריך) של פרויקטים בתהליך, לפי יום. 🔧 = מועד התקנה.</p>
-      <div class="board-grid" id="boardGrid"></div>
+
+      <p class="note">כל העבודות הפעילות במבט אחד: שורה לפרויקט, עמודה ליום עבודה. המספר בתא הוא מספר המשימה המתוכננת לאותו יום — ריחוף מעליו מציג את שמה. אדום = עבר התאריך ולא בוצע. גלילה ימינה ושמאלה לצפייה בכל הטווח.</p>
+      <div class="dash-wrap">
+        <table class="data-table dash-table" id="dashTable"></table>
+      </div>
     </section>
 
-    <!-- ============ משימות היום ============ -->
-    <section id="view-today" class="view">
-      <h2 class="section-title">משימות להיום — <span id="todayDate" class="mono"></span></h2>
-      <div class="report-list" id="todayList"></div>
+    <!-- ============ נתונים ============ -->
+    <section id="view-data" class="view">
+      <div class="controls">
+        <div class="search-box"><input type="text" id="dataSearch" placeholder="חיפוש לקוח / משימה / מס. תיק…"></div>
+        <select id="dataStatus">
+          <option value="">כל הסטטוסים</option>
+          <option value="pending">לא בוצע</option>
+          <option value="done">בוצע</option>
+          <option value="na">לא רלוונטי</option>
+        </select>
+        <button id="btnCsv">⭳ ייצוא לאקסל (CSV)</button>
+        <span class="hint" id="dataCount"></span>
+      </div>
+      <p class="note">שורה לכל משימה בכל פרויקט — המקבילה לגיליון <span class="mono">Data</span> שבקובץ המקורי. לחיצה על כותרת עמודה ממיינת.</p>
+      <table class="data-table">
+        <thead><tr>
+          <th data-sort="name">לקוח</th><th data-sort="caseNum" style="width:90px">מס. תיק</th>
+          <th data-sort="pstatus" style="width:90px">סטטוס</th><th data-sort="task">משימה</th>
+          <th data-sort="n" style="width:70px">מס. משימה</th><th data-sort="tstatus" style="width:100px">סטטוס משימה</th>
+          <th data-sort="date" style="width:100px">ת. התחלה</th>
+        </tr></thead>
+        <tbody id="dataBody"></tbody>
+      </table>
+    </section>
+
+    <!-- ============ לקוחות ============ -->
+    <section id="view-customers" class="view">
+      <p class="note">הרשימה נבנית מעצמה משמות הלקוחות שבפרויקטים — אין צורך להזין שם פעמיים. הוסיפו טלפון, דוא״ל וכתובת והם יישמרו ללקוח. לצד כל לקוח מוצגות העבודות שלו, האיחורים והמסירה הקרובה.</p>
+      <div class="controls">
+        <div class="search-box"><input type="text" id="custSearch" placeholder="חיפוש לקוח…"></div>
+        <input type="text" id="custName" placeholder="שם לקוח חדש">
+        <button class="btn-primary" id="custAdd">+ הוספה</button>
+        <span class="hint" id="custCount"></span>
+      </div>
+      <table class="data-table">
+        <thead><tr>
+          <th style="width:180px">לקוח</th>
+          <th style="width:130px">טלפון</th><th style="width:170px">דוא״ל</th><th>כתובת</th>
+          <th style="width:80px">עבודות</th><th style="width:80px">פתוחות</th>
+          <th style="width:80px">באיחור</th><th style="width:100px">מסירה קרובה</th>
+          <th style="width:50px"></th>
+        </tr></thead>
+        <tbody id="custBody"></tbody>
+      </table>
+    </section>
+
+    <!-- ============ מסך מנהל ============ -->
+    <section id="view-manager" class="view">
+      <div class="kpis kpis-wide">
+        <div class="kpi"><div class="num" id="mgOrders">0</div><div class="lbl">הזמנות פתוחות</div></div>
+        <div class="kpi"><div class="num" id="mgTasks">0</div><div class="lbl">משימות פתוחות</div></div>
+        <div class="kpi bad"><div class="num" id="mgLate">0</div><div class="lbl">משימות באיחור</div></div>
+        <div class="kpi warn"><div class="num" id="mgWeek">0</div><div class="lbl">מסירות ב-30 יום</div></div>
+        <div class="kpi ok"><div class="num" id="mgDone">0</div><div class="lbl">הושלמו</div></div>
+      </div>
+
+      <h2 class="section-title">משימות באיחור — פירוט</h2>
+      <p class="note" id="mgLateNote"></p>
+      <table class="data-table">
+        <thead><tr>
+          <th style="width:56px">ימים</th><th style="width:46px">מס׳</th>
+          <th style="width:170px">לקוח</th><th>משימה</th>
+          <th style="width:120px">יצרן</th><th style="width:120px">אחראי</th>
+          <th style="width:96px">תאריך יעד</th>
+        </tr></thead>
+        <tbody id="mgLateBody"></tbody>
+      </table>
+
+      <h2 class="section-title">עומס לפי יצרן</h2>
+      <table class="data-table">
+        <thead><tr>
+          <th style="width:190px">יצרן</th><th style="width:110px">מדינה</th>
+          <th style="width:120px">הזמנות פתוחות</th><th style="width:120px">משימות פתוחות</th>
+          <th style="width:110px">באיחור</th><th>המסירה הקרובה</th>
+        </tr></thead>
+        <tbody id="mgMakerBody"></tbody>
+      </table>
+    </section>
+
+    <!-- ============ יצרנים ============ -->
+    <section id="view-makers" class="view">
+      <p class="note">היצרנים החיצוניים שקליל מעבירה אליהם את הייצור. <strong>מדינת היצרן קובעת את לוח החגים ואת סוף השבוע של שלבי הייצור</strong> (10, 15, 16) בכל פרויקט שמשויך אליו — ישראל נחה בשישי ושבת, קפריסין ובלגיה בשבת וראשון.<br>
+      סימון "אבקה" או "מוטות" מדליק בפרויקטים של אותו יצרן את שלבי המשלוח 18 ו-19, שחוסמים את תחילת הייצור עד שהמשלוח מגיע.</p>
+      <div class="controls">
+        <input type="text" id="mName" placeholder="שם היצרן">
+        <select id="mCountry">
+          <option value="il">ישראל</option>
+          <option value="cy">קפריסין</option>
+          <option value="be">בלגיה</option>
+        </select>
+        <input type="text" id="mPhone" placeholder="טלפון">
+        <input type="text" id="mMail" placeholder="דוא״ל">
+        <button class="btn-primary" id="mAdd">+ הוספה</button>
+      </div>
+      <table class="data-table">
+        <thead><tr>
+          <th style="width:160px">שם</th><th style="width:110px">מדינה</th>
+          <th style="width:150px">ימי מנוחה</th><th style="width:140px">נשלח אליו</th>
+          <th style="width:130px">טלפון</th><th>דוא״ל</th><th style="width:50px"></th>
+        </tr></thead>
+        <tbody id="makersBody"></tbody>
+      </table>
+    </section>
+
+    <!-- ============ אנשי קשר ============ -->
+    <section id="view-contacts" class="view">
+      <p class="note">אנשי הקשר שאפשר לשייך למשימות. השיוך נעשה במסך <strong>פעולה יומית</strong>, ומשם נפתח ווטסאפ או מייל עם הודעה מוכנה שכוללת את שם הלקוח, המשימה והתאריך.</p>
+      <div class="controls">
+        <input type="text" id="cName" placeholder="שם">
+        <input type="text" id="cRole" placeholder="תפקיד / גורם (למשל: יצרן חיצוני)">
+        <input type="text" id="cPhone" placeholder="טלפון — 0501234567">
+        <input type="text" id="cMail" placeholder="דוא״ל (אופציונלי)">
+        <button class="btn-primary" id="cAdd">+ הוספה</button>
+      </div>
+      <table class="data-table">
+        <thead><tr>
+          <th style="width:150px">שם</th><th style="width:190px">תפקיד / גורם</th>
+          <th style="width:130px">טלפון</th><th>דוא״ל</th><th style="width:50px"></th>
+        </tr></thead>
+        <tbody id="contactsBody"></tbody>
+      </table>
+    </section>
+
+    <!-- ============ פעולה יומית ============ -->
+    <section id="view-today" class="view active">
+      <div class="board-nav">
+        <button id="dayPrev">◀ יום קודם</button>
+        <button id="dayToday" class="btn-primary">היום</button>
+        <button id="dayNext">יום הבא ▶</button>
+        <input type="date" id="dayPick">
+        <span class="hint" id="dayLabel"></span>
+      </div>
+      <p class="note">הפעולות המתוכננות ליום הנבחר, ממוינות לפי מספר המשימה. ניתן לרשום מנהל אחראי, עובד אחראי והערות — הכל נשמר לפרויקט.</p>
+      <table class="data-table">
+        <thead><tr>
+          <th style="width:46px">מס׳</th><th style="width:160px">לקוח</th><th>פעולה</th>
+          <th style="width:120px">מנהל אחראי</th><th style="width:120px">עובד אחראי</th>
+          <th style="width:190px">איש קשר</th>
+          <th style="width:96px">בוצע</th><th style="width:160px">הערות</th>
+        </tr></thead>
+        <tbody id="dailyBody"></tbody>
+      </table>
+    </section>
+
+    <!-- ============ נתונים ============ -->
+    <section id="view-data" class="view">
+      <div class="controls">
+        <div class="search-box"><input type="text" id="dataSearch" placeholder="חיפוש לקוח / משימה / מס. תיק…"></div>
+        <select id="dataStatus">
+          <option value="">כל הסטטוסים</option>
+          <option value="pending">לא בוצע</option>
+          <option value="done">בוצע</option>
+          <option value="na">לא רלוונטי</option>
+        </select>
+        <button id="btnCsv">⭳ ייצוא לאקסל (CSV)</button>
+        <span class="hint" id="dataCount"></span>
+      </div>
+      <p class="note">שורה לכל משימה בכל פרויקט — המקבילה לגיליון <span class="mono">Data</span> שבקובץ המקורי. לחיצה על כותרת עמודה ממיינת.</p>
+      <table class="data-table">
+        <thead><tr>
+          <th data-sort="name">לקוח</th><th data-sort="caseNum" style="width:90px">מס. תיק</th>
+          <th data-sort="pstatus" style="width:90px">סטטוס</th><th data-sort="task">משימה</th>
+          <th data-sort="n" style="width:70px">מס. משימה</th><th data-sort="tstatus" style="width:100px">סטטוס משימה</th>
+          <th data-sort="date" style="width:100px">ת. התחלה</th>
+        </tr></thead>
+        <tbody id="dataBody"></tbody>
+      </table>
+    </section>
+
+    <!-- ============ לקוחות ============ -->
+    <section id="view-customers" class="view">
+      <p class="note">הרשימה נבנית מעצמה משמות הלקוחות שבפרויקטים — אין צורך להזין שם פעמיים. הוסיפו טלפון, דוא״ל וכתובת והם יישמרו ללקוח. לצד כל לקוח מוצגות העבודות שלו, האיחורים והמסירה הקרובה.</p>
+      <div class="controls">
+        <div class="search-box"><input type="text" id="custSearch" placeholder="חיפוש לקוח…"></div>
+        <input type="text" id="custName" placeholder="שם לקוח חדש">
+        <button class="btn-primary" id="custAdd">+ הוספה</button>
+        <span class="hint" id="custCount"></span>
+      </div>
+      <table class="data-table">
+        <thead><tr>
+          <th style="width:180px">לקוח</th>
+          <th style="width:130px">טלפון</th><th style="width:170px">דוא״ל</th><th>כתובת</th>
+          <th style="width:80px">עבודות</th><th style="width:80px">פתוחות</th>
+          <th style="width:80px">באיחור</th><th style="width:100px">מסירה קרובה</th>
+          <th style="width:50px"></th>
+        </tr></thead>
+        <tbody id="custBody"></tbody>
+      </table>
+    </section>
+
+    <!-- ============ מסך מנהל ============ -->
+    <section id="view-manager" class="view">
+      <div class="kpis kpis-wide">
+        <div class="kpi"><div class="num" id="mgOrders">0</div><div class="lbl">הזמנות פתוחות</div></div>
+        <div class="kpi"><div class="num" id="mgTasks">0</div><div class="lbl">משימות פתוחות</div></div>
+        <div class="kpi bad"><div class="num" id="mgLate">0</div><div class="lbl">משימות באיחור</div></div>
+        <div class="kpi warn"><div class="num" id="mgWeek">0</div><div class="lbl">מסירות ב-30 יום</div></div>
+        <div class="kpi ok"><div class="num" id="mgDone">0</div><div class="lbl">הושלמו</div></div>
+      </div>
+
+      <h2 class="section-title">משימות באיחור — פירוט</h2>
+      <p class="note" id="mgLateNote"></p>
+      <table class="data-table">
+        <thead><tr>
+          <th style="width:56px">ימים</th><th style="width:46px">מס׳</th>
+          <th style="width:170px">לקוח</th><th>משימה</th>
+          <th style="width:120px">יצרן</th><th style="width:120px">אחראי</th>
+          <th style="width:96px">תאריך יעד</th>
+        </tr></thead>
+        <tbody id="mgLateBody"></tbody>
+      </table>
+
+      <h2 class="section-title">עומס לפי יצרן</h2>
+      <table class="data-table">
+        <thead><tr>
+          <th style="width:190px">יצרן</th><th style="width:110px">מדינה</th>
+          <th style="width:120px">הזמנות פתוחות</th><th style="width:120px">משימות פתוחות</th>
+          <th style="width:110px">באיחור</th><th>המסירה הקרובה</th>
+        </tr></thead>
+        <tbody id="mgMakerBody"></tbody>
+      </table>
+    </section>
+
+    <!-- ============ יצרנים ============ -->
+    <section id="view-makers" class="view">
+      <p class="note">היצרנים החיצוניים שקליל מעבירה אליהם את הייצור. <strong>מדינת היצרן קובעת את לוח החגים ואת סוף השבוע של שלבי הייצור</strong> (10, 15, 16) בכל פרויקט שמשויך אליו — ישראל נחה בשישי ושבת, קפריסין ובלגיה בשבת וראשון.<br>
+      סימון "אבקה" או "מוטות" מדליק בפרויקטים של אותו יצרן את שלבי המשלוח 18 ו-19, שחוסמים את תחילת הייצור עד שהמשלוח מגיע.</p>
+      <div class="controls">
+        <input type="text" id="mName" placeholder="שם היצרן">
+        <select id="mCountry">
+          <option value="il">ישראל</option>
+          <option value="cy">קפריסין</option>
+          <option value="be">בלגיה</option>
+        </select>
+        <input type="text" id="mPhone" placeholder="טלפון">
+        <input type="text" id="mMail" placeholder="דוא״ל">
+        <button class="btn-primary" id="mAdd">+ הוספה</button>
+      </div>
+      <table class="data-table">
+        <thead><tr>
+          <th style="width:160px">שם</th><th style="width:110px">מדינה</th>
+          <th style="width:150px">ימי מנוחה</th><th style="width:140px">נשלח אליו</th>
+          <th style="width:130px">טלפון</th><th>דוא״ל</th><th style="width:50px"></th>
+        </tr></thead>
+        <tbody id="makersBody"></tbody>
+      </table>
+    </section>
+
+    <!-- ============ אנשי קשר ============ -->
+    <section id="view-contacts" class="view">
+      <p class="note">אנשי הקשר שאפשר לשייך למשימות. השיוך נעשה במסך <strong>פעולה יומית</strong>, ומשם נפתח ווטסאפ או מייל עם הודעה מוכנה שכוללת את שם הלקוח, המשימה והתאריך.</p>
+      <div class="controls">
+        <input type="text" id="cName" placeholder="שם">
+        <input type="text" id="cRole" placeholder="תפקיד / גורם (למשל: יצרן חיצוני)">
+        <input type="text" id="cPhone" placeholder="טלפון — 0501234567">
+        <input type="text" id="cMail" placeholder="דוא״ל (אופציונלי)">
+        <button class="btn-primary" id="cAdd">+ הוספה</button>
+      </div>
+      <table class="data-table">
+        <thead><tr>
+          <th style="width:150px">שם</th><th style="width:190px">תפקיד / גורם</th>
+          <th style="width:130px">טלפון</th><th>דוא״ל</th><th style="width:50px"></th>
+        </tr></thead>
+        <tbody id="contactsBody"></tbody>
+      </table>
+    </section>
+
+    <!-- ============ פעולה יומית ============ -->
+    <section id="view-today" class="view active">
+      <div class="board-nav">
+        <button id="dayPrev">◀ יום קודם</button>
+        <button id="dayToday" class="btn-primary">היום</button>
+        <button id="dayNext">יום הבא ▶</button>
+        <input type="date" id="dayPick">
+        <span class="hint" id="dayLabel"></span>
+      </div>
+      <p class="note">הפעולות המתוכננות ליום הנבחר, ממוינות לפי מספר המשימה. ניתן לרשום מנהל אחראי, עובד אחראי והערות — הכל נשמר לפרויקט.</p>
+      <table class="data-table">
+        <thead><tr>
+          <th style="width:46px">מס׳</th><th style="width:160px">לקוח</th><th>פעולה</th>
+          <th style="width:120px">מנהל אחראי</th><th style="width:120px">עובד אחראי</th>
+          <th style="width:190px">איש קשר</th>
+          <th style="width:96px">בוצע</th><th style="width:160px">הערות</th>
+        </tr></thead>
+        <tbody id="dailyBody"></tbody>
+      </table>
+    </section>
+
+    <!-- ============ נתונים ============ -->
+    <section id="view-data" class="view">
+      <div class="controls">
+        <div class="search-box"><input type="text" id="dataSearch" placeholder="חיפוש לקוח / משימה / מס. תיק…"></div>
+        <select id="dataStatus">
+          <option value="">כל הסטטוסים</option>
+          <option value="pending">לא בוצע</option>
+          <option value="done">בוצע</option>
+          <option value="na">לא רלוונטי</option>
+        </select>
+        <button id="btnCsv">⭳ ייצוא לאקסל (CSV)</button>
+        <span class="hint" id="dataCount"></span>
+      </div>
+      <p class="note">שורה לכל משימה בכל פרויקט — המקבילה לגיליון <span class="mono">Data</span> שבקובץ המקורי. לחיצה על כותרת עמודה ממיינת.</p>
+      <table class="data-table">
+        <thead><tr>
+          <th data-sort="name">לקוח</th><th data-sort="caseNum" style="width:90px">מס. תיק</th>
+          <th data-sort="pstatus" style="width:90px">סטטוס</th><th data-sort="task">משימה</th>
+          <th data-sort="n" style="width:70px">מס. משימה</th><th data-sort="tstatus" style="width:100px">סטטוס משימה</th>
+          <th data-sort="date" style="width:100px">ת. התחלה</th>
+        </tr></thead>
+        <tbody id="dataBody"></tbody>
+      </table>
     </section>
 
     <!-- ============ חגים ============ -->
     <section id="view-holidays" class="view">
-      <p class="note">ימי אי-עבודה לחישוב לוח הזמנים (בנוסף לשישי/שבת). ניתן להוסיף ולהסיר לפי הצורך.</p>
+      <p class="note">ימי אי-עבודה לחישוב לוח הזמנים, בשלושה לוחות נפרדים. כל שלב במסלול מדלג רק על הלוחות שחלים עליו — ראו מסך <strong>כללי חישוב</strong>.<br>
+      ימי המנוחה השבועיים נקבעים לפי הלוח: ישראל ואסלאם — שישי ושבת; קפריסין — <strong>שבת וראשון</strong>.<br>
+      תאריכי חגי האסלאם מחושבים מהלוח ההיג'רי ועשויים לזוז ביום מול קביעה רשמית — כדאי לאמת לקראת כל שנה ולתקן כאן.</p>
+      <div class="cal-filters" id="holFilters"></div>
       <div class="controls">
         <input type="date" id="holDate">
         <input type="text" id="holName" placeholder="תיאור (אופציונלי)">
         <button class="btn-primary" id="holAdd">+ הוספת יום</button>
+        <span class="hint">יום שמוסיפים כאן חל על כל הלוחות</span>
       </div>
       <table class="data-table">
-        <thead><tr><th style="width:120px">תאריך</th><th>תיאור</th><th style="width:50px"></th></tr></thead>
+        <thead><tr><th style="width:110px">תאריך</th><th style="width:110px">לוח</th><th>תיאור</th><th style="width:50px"></th></tr></thead>
         <tbody id="holBody"></tbody>
       </table>
     </section>
 
     <!-- ============ כללי חישוב ============ -->
     <section id="view-rules" class="view">
-      <p class="note">כשמזינים תאריך למשימה בעמודה הימנית, המשימה בעמודה השמאלית מחושבת אוטומטית לפי המרווח (מעוגל ליום עבודה, בדילוג על שישי/שבת וחגים). הכללים הועתקו מקובץ האקסל המקורי.</p>
+      <p class="note">כשמזינים תאריך למשימה בעמודה הימנית, המשימה בעמודה השמאלית מחושבת אוטומטית לפי המרווח, מעוגל קדימה ליום עבודה. <strong>המרווחים ניתנים לעריכה</strong> — שנו מספר והתאריכים בכל הפרויקטים מחושבים מחדש מיד. מספר שלילי = חישוב אחורה. המספרים ההתחלתיים הועתקו מקובץ האקסל המקורי; ריקון השדה מחזיר לברירת המחדל.</p>
       <table class="data-table">
         <thead><tr><th>מס׳</th><th>מזינים תאריך ב…</th><th>נגזר</th><th>המשימה הנגזרת</th><th>מרווח</th></tr></thead>
         <tbody id="rulesBody"></tbody>
+      </table>
+
+      <h2 class="section-title">לוח חגים לכל שלב</h2>
+      <p class="note">לוח החגים של שלב נקבע לפי <strong>מי מבצע אותו ואיפה</strong>. הזמנות, מידות, אלומיניום, פרזול וזכוכית — בארץ. הייצור עצמו מועבר ליצרן חיצוני, וכשהוא בקפריסין השלב נעצר בחגי קפריסין ובסוף השבוע שלהם (שבת–ראשון).<br>
+      <strong>ברירת המחדל</strong> מסמנת את שלבי הייצור 10, 15 ו-16 גם בקפריסין. עבודה שמיוצרת אצל יצרן בארץ — כבו שם את קפריסין, וההגדרה תישמר.</p>
+      <table class="data-table">
+        <thead><tr><th style="width:60px">מס׳</th><th>שלב</th><th style="width:280px">לוחות שחלים עליו</th></tr></thead>
+        <tbody id="calsBody"></tbody>
       </table>
     </section>
 
   </div>
 
-  <script src="js/holidays.js"></script>
-  <script src="js/schedule.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/holidays.js?v=21"></script>
+  <script src="js/schedule.js?v=21"></script>
+  <script src="js/app.js?v=21"></script>
 </body>
 </html>
