@@ -327,6 +327,7 @@ select:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
   border-right:2px solid var(--border);
 }
 .dash-table td.dash-end.late{color:var(--bad); font-weight:700;}
+
 .tnum{
   display:inline-flex; align-items:center; justify-content:center;
   min-width:22px; height:22px; margin:1px 0; padding:0 3px; border-radius:6px;
