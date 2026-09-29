@@ -42,6 +42,7 @@
     lateOnly: false,       // הצגת משימות באיחור בלבד
     contacts: [],
     makers: [],
+    makerOpen: {},
     customers: [],
     custSearch: ''
   };
@@ -240,6 +241,21 @@
 
   /* ---------- date cascade wiring ---------- */
   function makerById(id) { return state.makers.find(m => m.id === id) || null; }
+
+  /*
+   * projectLate — האיחור החמור ביותר בפרויקט: מספר הימים של המשימה
+   * שעברה הכי הרבה זמן וטרם בוצעה. 0 = אין איחור.
+   */
+  function projectLate(p) {
+    let worst = 0;
+    p.tasks.forEach(t => {
+      if (t.status === 'pending' && t.date) {
+        const d = daysFromToday(t.date);
+        if (d !== null && d < 0 && -d > worst) worst = -d;
+      }
+    });
+    return worst;
+  }
 
   /*
    * applyDate — מחיל תאריך ומגלגל את הגזירות.
@@ -1246,12 +1262,26 @@
       return;
     }
     state.makers.forEach(m => {
-      const tr = el('tr');
+      const projs = state.projects.filter(p => p.maker === m.id);
+      const open = !!state.makerOpen[m.id];
+      const tr = el('tr', open ? 'maker-open' : '');
 
-      const nt = el('td');
+      // שם + חץ פתיחה + מונה פרויקטים
+      const nt = el('td', 'maker-name-cell');
+      const head = el('div', 'maker-head');
+      const chev = el('span', 'maker-chev', projs.length ? (open ? '\u25be' : '\u25b8') : '');
+      head.appendChild(chev);
       const ni = el('input'); ni.type = 'text'; ni.className = 'cell-input'; ni.value = m.name || '';
       ni.addEventListener('change', () => { m.name = ni.value.trim(); saveMakers(); });
-      nt.appendChild(ni); tr.appendChild(nt);
+      ni.addEventListener('click', e => e.stopPropagation());
+      head.appendChild(ni);
+      const cnt = el('span', 'maker-count', String(projs.length));
+      cnt.title = projs.length + ' פרויקטים';
+      head.appendChild(cnt);
+      if (projs.length) head.addEventListener('click', () => {
+        state.makerOpen[m.id] = !open; renderMakers();
+      });
+      nt.appendChild(head); tr.appendChild(nt);
 
       // מדינה — קובעת את לוח החגים ואת סוף השבוע של שלבי הייצור
       const ct = el('td');
@@ -1314,6 +1344,41 @@
       });
       dt.appendChild(x); tr.appendChild(dt);
       box.appendChild(tr);
+
+      // פאנל הפרויקטים של היצרן — נפתח בלחיצה על שמו
+      if (open) {
+        const er = el('tr', 'maker-projects');
+        const ec = el('td'); ec.colSpan = 7;
+        if (!projs.length) {
+          ec.appendChild(el('div', 'mp-empty', 'אין פרויקטים משויכים ליצרן זה.'));
+        } else {
+          projs.sort((a, b) => (installISO(a) || '9999') < (installISO(b) || '9999') ? -1 : 1);
+          projs.forEach(p => {
+            const row = el('div', 'mp-row');
+            const nm = el('div', 'mp-name');
+            nm.appendChild(el('span', 'mp-cli', esc(p.name)));
+            if (p.caseNum) nm.appendChild(el('span', 'mp-case mono', esc(p.caseNum)));
+            row.appendChild(nm);
+
+            // סטטוס כללי
+            const ins = installISO(p);
+            row.appendChild(el('span', 'mp-date mono', ins ? 'מסירה: ' + fmt(ins) : 'ללא מועד'));
+
+            // איחור
+            const late = projectLate(p);
+            if (isComplete(p)) {
+              row.appendChild(el('span', 'mp-badge ok', 'הושלם'));
+            } else if (late > 0) {
+              row.appendChild(el('span', 'mp-badge bad', 'מאחר ' + late + ' ימים'));
+            } else {
+              row.appendChild(el('span', 'mp-badge ontime', 'בזמן'));
+            }
+            ec.appendChild(row);
+          });
+        }
+        er.appendChild(ec);
+        box.appendChild(er);
+      }
     });
   }
   function saveMakers() { writeList(LS_MAKERS, state.makers); }
@@ -1781,7 +1846,52 @@
     if (wrap) wrap.insertBefore(bar, wrap.firstChild);
   }
 
+
+  /* ---------- נתוני הדגמה ---------- */
+  function shiftISO(iso, n) { return toISO(addDays(fromISO(iso), n)); }
+  function wantDemo() {
+    const h = location.hostname || '';
+    const forced = /[?&]demo=1\b/.test(location.search);
+    let empty = true;
+    try { empty = !localStorage.getItem(LS_PROJECTS) && !localStorage.getItem(LS_MAKERS); } catch (e) {}
+    return !!window.DEMO && empty && (forced || /github\.io$/.test(h));
+  }
+  function seedDemo() {
+    const D = window.DEMO, today = todayISO();
+    state.makers = D.makers.map(m => Object.assign({ phone: '', mail: '', needPowder: false, needBars: false }, m));
+    state.projects = D.projects.map((row, i) => {
+      const [name, mid, mode, late, off] = row;
+      const p = newProject(name, '2026-' + (101 + i));
+      p.maker = mid;
+      applyMakerDefaults(p);
+      const want = shiftISO(today, off);
+      // שלבי הזרע: התאריכים שמהם המנוע גוזר את כל השאר
+      const seeds = isOverseas((makerById(mid) || {}).country)
+        ? [[1, -75], [5, -65], [20, -45]]
+        : [[1, -75], [2, -70], [5, -65], [9, -58]];
+      seeds.forEach(([n, d]) => applyDate(p, n, shiftISO(want, d)));
+      const r = applyDate(p, 17, want);
+      if (!r.ok) applyDate(p, 17, r.earliest);
+      let cut = today;
+      if (mode === 'late') {
+        // משאירים 'פתוחות' אחת עד שלוש משימות שכבר עבר מועדן — האיחור משתנה בין פרויקטים
+        const past = p.tasks.filter(t => t.status !== 'na' && t.date && t.date < today)
+          .map(t => t.date).sort();
+        if (past.length) cut = past[Math.max(0, past.length - 1 - (late % 3))];
+      }
+      p.tasks.forEach(t => {
+        if (t.status === 'na') return;
+        if (mode === 'done' || (t.date && t.date < cut)) t.status = 'done';
+      });
+      const t17 = p.tasks.find(t => t.n === 17);
+      if (mode === 'done' && t17) t17.actualDate = t17.date;
+      return p;
+    });
+    save(); saveMakers();
+  }
+
   function init() {
+    safe('נתוני הדגמה', () => { if (wantDemo()) { load(); seedDemo(); } });
     safe('טעינת נתונים', load);
     safe('לוחות חגים', refreshHolidaySet);
     safe('שיוך לוחות לשלבים', refreshTaskCals);
