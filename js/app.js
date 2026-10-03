@@ -16,6 +16,7 @@
   const LS_MAKERS    = 'shachaf_makers_v1';           // יצרנים חיצוניים
   const LS_GAPS      = 'shachaf_gaps_v1';             // מרווחי ימים ששונו
   const LS_CUSTOMERS = 'shachaf_customers_v1';        // פרטי לקוחות
+  const LS_SOURCE    = 'shachaf_source_v1';           // מאיפה נטענו הנתונים: airtable / demo
 
   const STATUS_LABEL = { done: 'בוצע', pending: 'לא בוצע', na: 'לא רלוונטי' };
   const STATUS_CYCLE = { pending: 'done', done: 'na', na: 'pending' };
@@ -1854,14 +1855,21 @@
     const forced = /[?&]demo=1\b/.test(location.search);
     let empty = true;
     try { empty = !localStorage.getItem(LS_PROJECTS) && !localStorage.getItem(LS_MAKERS); } catch (e) {}
+    // מקור אמת יחיד: כשהנתונים הגיעו מ-Airtable, טוענים מחדש בכל פתיחה,
+    // אבל רק אם הדפדפן ריק או שהעותק המקומי עצמו הגיע מ-Airtable (נתונים אמיתיים לא נדרסים)
+    if (window.DEMO_SOURCE === 'airtable') {
+      let src = '';
+      try { src = localStorage.getItem(LS_SOURCE) || ''; } catch (e) {}
+      return empty || src === 'airtable';
+    }
     return !!window.DEMO && empty && (forced || /github\.io$/.test(h));
   }
   function seedDemo() {
     const D = window.DEMO, today = todayISO();
     state.makers = D.makers.map(m => Object.assign({ phone: '', mail: '', needPowder: false, needBars: false }, m));
     state.projects = D.projects.map((row, i) => {
-      const [name, mid, mode, late, off] = row;
-      const p = newProject(name, '2026-' + (101 + i));
+      const [name, mid, mode, late, off, caseNum, type] = row;
+      const p = newProject(name, caseNum || '2026-' + (101 + i), type);
       p.maker = mid;
       applyMakerDefaults(p);
       const want = shiftISO(today, off);
@@ -1888,9 +1896,28 @@
       return p;
     });
     save(); saveMakers();
+    try { localStorage.setItem(LS_SOURCE, window.DEMO_SOURCE || 'demo'); } catch (e) {}
+  }
+
+  /* פס קטן שאומר מאיפה הגיעו הנתונים (Airtable או הדגמה מקומית) */
+  function showSourceBar() {
+    const s = window.AT_STATUS;
+    if (!s || !s.active) return;
+    const bar = el('div', s.ok ? 'src-bar' : 'init-error');
+    bar.textContent = s.ok
+      ? 'הנתונים נטענו מ-Airtable (' + s.count + ' פרויקטים). עדכונים עושים ב-Airtable, והם יופיעו כאן ברענון.'
+      : 'לא הצלחנו לטעון מ-Airtable (' + s.error + '). מוצגים נתוני ההדגמה המקומיים.';
+    const wrap = document.querySelector('.wrap');
+    if (wrap) wrap.insertBefore(bar, wrap.firstChild);
   }
 
   function init() {
+    // מחכים לטעינה מ-Airtable (אם מוגדרת). כשל או היעדר — ממשיכים כרגיל
+    const ready = window.AT_READY || Promise.resolve();
+    ready.then(start, start);
+  }
+
+  function start() {
     safe('נתוני הדגמה', () => { if (wantDemo()) { load(); seedDemo(); } });
     safe('טעינת נתונים', load);
     safe('לוחות חגים', refreshHolidaySet);
@@ -1902,6 +1929,7 @@
     });
     safe('חיבור כפתורים', bind);   // חייב לרוץ גם אם קדמו לו כשלים
     safe('ציור המסך', render);
+    safe('מקור נתונים', showSourceBar);
     showInitError();
   }
   document.addEventListener('DOMContentLoaded', init);
