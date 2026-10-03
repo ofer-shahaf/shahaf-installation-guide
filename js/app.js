@@ -1965,6 +1965,13 @@
       state.dayPick = todayISO();
     });
     safe('חיבור כפתורים', bind);   // חייב לרוץ גם אם קדמו לו כשלים
+    /* קישור ישיר שפותח את מסך החיבור ל-Airtable: ...#airtable */
+    safe('קישור ישיר ל-Airtable', () => {
+      if (location.hash === '#airtable') {
+        state.view = 'projects';
+        const f = byId('atForm'); if (f) f.classList.add('open');
+      }
+    });
     safe('ציור המסך', render);
     safe('מקור נתונים', showSourceBar);
     showInitError();
