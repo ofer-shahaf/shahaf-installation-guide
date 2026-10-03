@@ -11,7 +11,7 @@
  * הדשבורד יחזור לנתוני ההדגמה שב-demo.js.
  */
 window.AIRTABLE_CONFIG = {
-  token: '',                       // ← כאן מדביקים את ה-Token (מתחיל ב-pat)
+  token: '',https://airtable.com/create/tokens/patE05ETarOjftLNJ                       // ← כאן מדביקים את ה-Token (מתחיל ב-pat)
   baseId: 'app9HQEz0kwaLGtRS',     // מסלול ייצור - דמו
 
   makers: {
