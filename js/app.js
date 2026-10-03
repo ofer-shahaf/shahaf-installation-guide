@@ -1781,7 +1781,20 @@
 
     /* חיבור ל-Airtable: המפתח נשמר רק בדפדפן הזה (localStorage), לא בקוד */
     on('btnAirtable', 'click', () => toggleCls('atForm', 'open'));
-    on('atSave', 'click', () => {
+    /* לחיצה אחת: קוראים את המפתח מהלוח של המשתמש ושומרים. הדפדפן יבקש אישור בפעם הראשונה */
+    on('atPaste', 'click', () => {
+      if (!navigator.clipboard || !navigator.clipboard.readText) {
+        alert('הדפדפן לא מאפשר קריאה מהלוח. הדביקו ידנית בשדה (Ctrl+V) ולחצו "שמור וטען מ-Airtable".'); return;
+      }
+      navigator.clipboard.readText().then(txt => {
+        setVal('atToken', (txt || '').trim());
+        saveAirtableToken();
+      }).catch(() => {
+        alert('אין הרשאה לקרוא מהלוח. הדביקו ידנית בשדה (Ctrl+V) ולחצו "שמור וטען מ-Airtable".');
+      });
+    });
+    on('atSave', 'click', saveAirtableToken);
+    function saveAirtableToken() {
       const tok = val('atToken').trim();
       if (!/^pat[\w.]{20,}$/.test(tok)) { alert('זה לא נראה כמו מפתח Airtable. המפתח מתחיל ב-pat ואורכו כ-80 תווים.'); return; }
       let src = '';
@@ -1793,7 +1806,7 @@
         localStorage.removeItem(LS_PROJECTS); localStorage.removeItem(LS_MAKERS); localStorage.removeItem(LS_SOURCE);
       } catch (e) {}
       location.reload();
-    });
+    }
     on('atClear', 'click', () => {
       try {
         localStorage.removeItem('shachaf_airtable_token_v1');
