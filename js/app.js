@@ -28,6 +28,7 @@
     projects: [],
     search: '',
     urgentOnly: false,
+    hall: null,            // האולם שנבחר במסך אנשי אלומיניום
     openIds: {},
     view: 'today',
     boardStart: null,   // ISO של תחילת השבוע המוצג
@@ -391,6 +392,7 @@
     else if (state.view === 'today') renderDaily();
     else if (state.view === 'contacts') renderContacts();
     else if (state.view === 'makers') renderMakers();
+    else if (state.view === 'installers') renderInstallers();
     else if (state.view === 'manager') renderManager();
     else if (state.view === 'data') renderData();
     else if (state.view === 'customers') renderCustomers();
@@ -1252,6 +1254,63 @@
   }
 
   /* ----- יצרנים ----- */
+  /* ---------- אנשי אלומיניום לפי אולם: נתונים מ-Apify (Google Maps Scraper) ---------- */
+  function haversineKm(lat1, lng1, lat2, lng2) {
+    const R = 6371, toR = d => d * Math.PI / 180;
+    const dLat = toR(lat2 - lat1), dLng = toR(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toR(lat1)) * Math.cos(toR(lat2)) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+  function renderInstallers() {
+    const D = window.INSTALLERS || { halls: [], meta: {} };
+    if (!state.hall && D.halls.length) state.hall = D.halls[0].id;
+    const hall = D.halls.find(h => h.id === state.hall) || D.halls[0];
+
+    setHTML('hallTabs', D.halls.map(h =>
+      '<button class="hall-tab' + (hall && h.id === hall.id ? ' active' : '') + '" data-hall="' + esc(h.id) + '">' +
+      esc(h.name) + ' <span class="cnt">' + h.places.length + '</span></button>').join(''));
+    document.querySelectorAll('#hallTabs .hall-tab').forEach(b =>
+      b.addEventListener('click', () => { state.hall = b.dataset.hall; renderInstallers(); }));
+
+    if (!hall) {
+      setHTML('instKpis', ''); setText('instMeta', '');
+      setHTML('instBody', '<tr><td colspan="8" class="empty">אין נתונים עדיין. מריצים את הסריקה ב-Apify ומעדכנים את js/installers.js</td></tr>');
+      return;
+    }
+    const places = hall.places.map(p => Object.assign({}, p, {
+      dist: (p.lat && p.lng) ? haversineKm(hall.lat, hall.lng, p.lat, p.lng) : null
+    }));
+    const q = (val('instSearch') || '').trim().toLowerCase();
+    const sort = val('instSort') || 'reviews';
+    let list = places.filter(p => !q || (p.name + ' ' + (p.city || '')).toLowerCase().includes(q));
+    if (sort === 'score') list.sort((a, b) => (b.score || 0) - (a.score || 0) || (b.reviews || 0) - (a.reviews || 0));
+    else if (sort === 'dist') list.sort((a, b) => (a.dist ?? 1e9) - (b.dist ?? 1e9));
+    else if (sort === 'name') list.sort((a, b) => a.name.localeCompare(b.name, 'he'));
+    else list.sort((a, b) => (b.reviews || 0) - (a.reviews || 0));
+
+    const rated = places.filter(p => p.score);
+    const avg = rated.length ? (rated.reduce((s, p) => s + p.score, 0) / rated.length).toFixed(1) : '–';
+    const top = places.slice().sort((a, b) => (b.reviews || 0) - (a.reviews || 0))[0];
+    const near = places.filter(p => p.dist !== null && p.dist <= 20).length;
+    setHTML('instKpis',
+      '<div class="kpi"><div class="num">' + places.length + '</div><div class="lbl">אנשי אלומיניום ברדיוס 80 ק"מ</div></div>' +
+      '<div class="kpi ok"><div class="num">' + avg + '</div><div class="lbl">דירוג ממוצע בגוגל</div></div>' +
+      '<div class="kpi"><div class="num">' + near + '</div><div class="lbl">עד 20 ק"מ מהאולם</div></div>' +
+      '<div class="kpi warn"><div class="num" style="font-size:15px">' + esc(top ? top.name : '–') + '</div><div class="lbl">הכי הרבה ביקורות</div></div>');
+    setText('instMeta', D.meta.fetchedAt ? 'נאסף: ' + D.meta.fetchedAt + ' · חיפוש: ' + D.meta.query + '.' : '');
+
+    setHTML('instBody', list.length ? list.map(p =>
+      '<tr><td><strong>' + esc(p.name) + '</strong>' + (p.category ? '<div class="cli-case">' + esc(p.category) + '</div>' : '') + '</td>' +
+      '<td class="num-cell">' + (p.score ? '★ ' + p.score.toFixed(1) : '–') + '</td>' +
+      '<td class="num-cell">' + (p.reviews || 0) + '</td>' +
+      '<td>' + esc(p.city || '') + '</td>' +
+      '<td class="num-cell">' + (p.dist !== null ? Math.round(p.dist) + ' ק"מ' : '–') + '</td>' +
+      '<td dir="ltr">' + esc(p.phone || '') + '</td>' +
+      '<td>' + (p.website ? '<a href="' + esc(p.website) + '" target="_blank" rel="noopener">אתר</a>' : '') + '</td>' +
+      '<td>' + (p.placeId ? '<a href="https://www.google.com/maps/place/?q=place_id:' + esc(p.placeId) + '" target="_blank" rel="noopener">מפה</a>' : '') + '</td></tr>'
+    ).join('') : '<tr><td colspan="8" class="empty">לא נמצאו תוצאות לחיפוש.</td></tr>');
+  }
+
   function renderMakers() {
     const box = byId('makersBody');
     if (!box) return;
@@ -1778,6 +1837,8 @@
     on('btnExport', 'click', exportData);
     on('importFile', 'change', importData);
     on('btnImport', 'click', () => { const f = byId('importFile'); if (f) f.click(); });
+    on('instSearch', 'input', renderInstallers);
+    on('instSort', 'change', renderInstallers);
 
     /* חיבור ל-Airtable: המפתח נשמר רק בדפדפן הזה (localStorage), לא בקוד */
     on('btnAirtable', 'click', () => toggleCls('atForm', 'open'));

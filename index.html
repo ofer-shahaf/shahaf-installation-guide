@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Rubik:wght@600;700;800&family=Heebo:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
-  <link rel="stylesheet" href="css/styles.css?v=29">
+  <link rel="stylesheet" href="css/styles.css?v=30">
 </head>
 <body>
   <div class="wrap">
@@ -17,13 +17,14 @@
     <div class="topbar">
       <div class="brand">
         <h1>מסלול ייצור ואספקה</h1>
-        <div class="sub">קליל תעשיות · מהזמנה עד מסירה <span class="ver">גרסה 29</span></div>
+        <div class="sub">קליל תעשיות · מהזמנה עד מסירה <span class="ver">גרסה 30</span></div>
       </div>
       <div class="tabs-main">
         <button class="tab active" data-view="today">תנועה יומית</button>
         <button class="tab" data-view="board">דשבורד</button>
         <button class="tab" data-view="projects">פרויקטים</button>
         <button class="tab" data-view="makers">יצרנים</button>
+        <button class="tab" data-view="installers">אנשי אלומיניום</button>
       </div>
       <div class="tabs-sub">
         <button class="tab tab-sm" data-view="data">נתונים</button>
@@ -205,6 +206,29 @@
       </table>
     </section>
 
+    <!-- ============ אנשי אלומיניום (Apify) ============ -->
+    <section id="view-installers" class="view">
+      <p class="note">לקוח שסגר עסקה באולם צריך איש אלומיניום שיבצע. כאן, לכל אולם של קליל, <strong>30 אנשי אלומיניום ברדיוס של עד 80 ק"מ</strong> כפי שהם מופיעים בגוגל מפות, עם דירוג וביקורות. הנתונים נאספו עם <strong>Apify</strong> (Google Maps Scraper) ונשמרו ב-<code>js/installers.js</code>. <span id="instMeta"></span></p>
+      <div class="controls">
+        <div class="hall-tabs" id="hallTabs"></div>
+        <div class="search-box"><input type="text" id="instSearch" placeholder="חיפוש חברה / עיר…"></div>
+        <select id="instSort">
+          <option value="reviews">מיון: הכי הרבה ביקורות</option>
+          <option value="score">מיון: דירוג גבוה</option>
+          <option value="dist">מיון: הכי קרוב לאולם</option>
+          <option value="name">מיון: שם</option>
+        </select>
+      </div>
+      <div class="kpis" id="instKpis"></div>
+      <table class="data-table">
+        <thead><tr>
+          <th>שם</th><th style="width:80px">דירוג</th><th style="width:80px">ביקורות</th>
+          <th style="width:150px">עיר</th><th style="width:90px">מרחק</th><th style="width:130px">טלפון</th><th style="width:60px">אתר</th><th style="width:60px">מפה</th>
+        </tr></thead>
+        <tbody id="instBody"></tbody>
+      </table>
+    </section>
+
     <!-- ============ אנשי קשר ============ -->
     <section id="view-contacts" class="view">
       <p class="note">אנשי הקשר שאפשר לשייך למשימות. השיוך נעשה במסך <strong>פעולה יומית</strong>, ומשם נפתח ווטסאפ או מייל עם הודעה מוכנה שכוללת את שם הלקוח, המשימה והתאריך.</p>
@@ -282,11 +306,12 @@
 
   </div>
 
-  <script src="js/holidays.js?v=29"></script>
-  <script src="js/schedule.js?v=29"></script>
-  <script src="js/demo.js?v=29"></script>
-  <script src="js/airtable-config.js?v=29"></script>
-  <script src="js/airtable.js?v=29"></script>
-  <script src="js/app.js?v=29"></script>
+  <script src="js/holidays.js?v=30"></script>
+  <script src="js/schedule.js?v=30"></script>
+  <script src="js/demo.js?v=30"></script>
+  <script src="js/installers.js?v=30"></script>
+  <script src="js/airtable-config.js?v=30"></script>
+  <script src="js/airtable.js?v=30"></script>
+  <script src="js/app.js?v=30"></script>
 </body>
 </html>
