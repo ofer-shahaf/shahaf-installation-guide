@@ -18,8 +18,16 @@
 
   window.AT_STATUS = { active: false, ok: false, count: 0, error: '' };
 
+  /* המפתח: או מהקובץ airtable-config.js, או כזה שהמשתמש שמר בדפדפן שלו (מסך פרויקטים ← Airtable) */
+  const LS_TOKEN = 'shachaf_airtable_token_v1';
+  let localToken = '';
+  try { localToken = localStorage.getItem(LS_TOKEN) || ''; } catch (e) {}
+  const TOKEN = localToken || C.token || '';
+  window.AT_HAS_LOCAL_TOKEN = !!localToken;
+
   function enabled() {
-    if (!C.token || !C.baseId) return false;
+    if (!TOKEN || !C.baseId) return false;
+    if (localToken) return true;                    // מפתח שנשמר בדפדפן עובד מכל מקום
     const onPages = /github\.io$/.test(location.hostname || '');
     const forced = /[?&]airtable=1\b/.test(location.search);
     return onPages || forced;
@@ -33,7 +41,7 @@
       const url = API + C.baseId + '/' + table +
         '?returnFieldsByFieldId=true&pageSize=100' +
         (offset ? '&offset=' + encodeURIComponent(offset) : '');
-      const res = await fetch(url, { headers: { Authorization: 'Bearer ' + C.token } });
+      const res = await fetch(url, { headers: { Authorization: 'Bearer ' + TOKEN } });
       if (!res.ok) throw new Error('Airtable החזיר שגיאה ' + res.status);
       const data = await res.json();
       rows.push.apply(rows, data.records || []);

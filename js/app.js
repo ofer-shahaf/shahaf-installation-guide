@@ -1778,6 +1778,30 @@
     on('btnExport', 'click', exportData);
     on('importFile', 'change', importData);
     on('btnImport', 'click', () => { const f = byId('importFile'); if (f) f.click(); });
+
+    /* חיבור ל-Airtable: המפתח נשמר רק בדפדפן הזה (localStorage), לא בקוד */
+    on('btnAirtable', 'click', () => toggleCls('atForm', 'open'));
+    on('atSave', 'click', () => {
+      const tok = val('atToken').trim();
+      if (!/^pat[\w.]{20,}$/.test(tok)) { alert('זה לא נראה כמו מפתח Airtable. המפתח מתחיל ב-pat ואורכו כ-80 תווים.'); return; }
+      let src = '';
+      try { src = localStorage.getItem(LS_SOURCE) || ''; } catch (e) {}
+      if (!src && state.projects.length &&
+          !confirm('בדפדפן הזה יש נתונים שהוזנו ידנית. לטעון במקומם את הנתונים מ-Airtable? (מומלץ לייצא גיבוי קודם)')) return;
+      try {
+        localStorage.setItem('shachaf_airtable_token_v1', tok);
+        localStorage.removeItem(LS_PROJECTS); localStorage.removeItem(LS_MAKERS); localStorage.removeItem(LS_SOURCE);
+      } catch (e) {}
+      location.reload();
+    });
+    on('atClear', 'click', () => {
+      try {
+        localStorage.removeItem('shachaf_airtable_token_v1');
+        let src = ''; try { src = localStorage.getItem(LS_SOURCE) || ''; } catch (e) {}
+        if (src === 'airtable') { localStorage.removeItem(LS_PROJECTS); localStorage.removeItem(LS_MAKERS); localStorage.removeItem(LS_SOURCE); }
+      } catch (e) {}
+      location.reload();
+    });
   }
 
   function exportData() {
@@ -1906,7 +1930,7 @@
     const bar = el('div', s.ok ? 'src-bar' : 'init-error');
     bar.textContent = s.ok
       ? 'הנתונים נטענו מ-Airtable (' + s.count + ' פרויקטים). עדכונים עושים ב-Airtable, והם יופיעו כאן ברענון.'
-      : 'לא הצלחנו לטעון מ-Airtable (' + s.error + '). מוצגים נתוני ההדגמה המקומיים.';
+      : 'לא הצלחנו לטעון מ-Airtable (' + s.error + '). מוצגים נתוני ההדגמה המקומיים. בדקו את המפתח במסך פרויקטים ← Airtable.';
     const wrap = document.querySelector('.wrap');
     if (wrap) wrap.insertBefore(bar, wrap.firstChild);
   }
